@@ -86,6 +86,31 @@ p { margin: 0; }
 .charge button:hover, .contact button:hover { transform: translateY(-2px); }
 .charge button:focus-visible, .contact button:focus-visible { outline: 3px solid var(--sky); outline-offset: 3px; }
 
+/* Fortune */
+.fortune { display: flex; flex-direction: column; gap: 16px; }
+.fortune-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; justify-content: space-between; }
+.fortune-date { color: var(--muted); font-size: .95rem; font-variant-numeric: tabular-nums; }
+.zodiac { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.zodiac button { font: inherit; font-size: .95rem; background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 12px; padding: 8px 4px; cursor: pointer; transition: border-color .15s ease, background .15s ease; }
+.zodiac button:hover { border-color: var(--sky); }
+.zodiac button[aria-pressed="true"] { background: var(--sky); border-color: var(--sky); color: #fff; font-weight: 700; }
+.zodiac button:focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; }
+.fortune-years { font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.fortune-card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+.fortune-card h3 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 1.35rem; }
+.fortune-main { font-size: 1.1rem; }
+.fortune-scores { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 24px; margin: 0; }
+.fortune-scores div { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px dashed var(--line); padding-bottom: 6px; }
+.fortune-scores dt { color: var(--muted); }
+.fortune-scores dd { margin: 0; color: var(--sun); letter-spacing: 2px; }
+.fortune-scores dd .off { color: var(--line); }
+.fortune-lucky { display: flex; flex-wrap: wrap; gap: 10px 20px; font-size: .95rem; }
+.fortune-lucky span { display: inline-flex; align-items: center; gap: 6px; }
+.fortune-lucky b { font-weight: 700; }
+.swatch { width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--line); display: inline-block; }
+.fortune-tip { background: var(--bg); border-radius: 12px; padding: 12px 16px; font-size: .95rem; }
+.fortune-note { font-size: .85rem; color: var(--muted); }
+
 /* Lotto */
 .lotto { display: flex; flex-direction: column; gap: 16px; }
 .lotto-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
@@ -114,6 +139,8 @@ footer { text-align: center; color: var(--muted); font-size: .85rem; }
 @media (max-width: 480px) {
   .stats { grid-template-columns: 1fr; }
   .recipe li { grid-template-columns: 1fr; gap: 2px; }
+  .zodiac { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .fortune-scores { grid-template-columns: 1fr; }
   .prayer { grid-template-columns: 1fr; gap: 20px; }
   .games li { grid-template-columns: 1fr; gap: 6px; }
 }
@@ -171,6 +198,24 @@ footer { text-align: center; color: var(--muted); font-size: .85rem; }
     <button type="button" id="chargeBtn">행복 충전하기</button>
   </section>
 
+  <section class="fortune">
+    <span class="label">Daily Fortune</span>
+    <div class="fortune-head">
+      <h2>JS가 봐주는 오늘의 운세</h2>
+      <span class="fortune-date" id="fortuneDate"></span>
+    </div>
+    <div class="zodiac" id="zodiac" role="group" aria-label="띠 선택"></div>
+    <p class="fortune-years" id="fortuneYears"></p>
+    <article class="fortune-card" aria-live="polite">
+      <h3 id="fortuneTitle">오늘의 운세</h3>
+      <p class="fortune-main" id="fortuneMain"></p>
+      <dl class="fortune-scores" id="fortuneScores"></dl>
+      <div class="fortune-lucky" id="fortuneLucky"></div>
+      <p class="fortune-tip" id="fortuneTip"></p>
+    </article>
+    <p class="fortune-note">같은 날에는 같은 운세가 나오고, 날짜가 바뀌면 새 운세가 나와요. 재미로만 봐 주세요.</p>
+  </section>
+
   <section class="lotto">
     <span class="label">Lucky Numbers</span>
     <div class="lotto-head">
@@ -217,6 +262,100 @@ btn.addEventListener("click", () => {
   meterText.textContent = level === 100 ? "행복 게이지 100% 완충!" : "행복 게이지 " + level + "%";
   btn.textContent = level === 100 ? "처음부터 다시 충전" : "한 번 더 충전하기";
 });
+
+const ZODIAC = ["쥐", "소", "호랑이", "토끼", "용", "뱀", "말", "양", "원숭이", "닭", "개", "돼지"];
+const FORTUNE_MAIN = [
+  "뜻밖의 곳에서 반가운 소식이 들려와요. 연락을 미뤄둔 사람이 있다면 오늘 먼저 안부를 전해 보세요.",
+  "차분하게 하나씩 정리하면 막혀 있던 일이 술술 풀리는 날이에요.",
+  "주변 사람의 작은 도움이 큰 힘이 돼요. 고맙다는 말을 아끼지 마세요.",
+  "새로운 걸 시작하기 좋은 날이에요. 미뤄둔 계획을 오늘 첫걸음만 떼어 보세요.",
+  "욕심을 조금 내려놓으면 오히려 더 많은 걸 얻는 하루예요.",
+  "웃음이 많은 하루가 될 거예요. 좋은 기운이 사람들을 통해 들어와요.",
+  "서두르면 실수가 생기기 쉬워요. 한 번 더 확인하는 습관이 행운을 지켜줘요.",
+  "오랫동안 노력해 온 일에서 작은 결실이 보여요. 스스로를 칭찬해 주세요.",
+  "마음이 조금 복잡할 수 있지만, 저녁이 되면 한결 가벼워져요.",
+  "생각지 못한 인연이 찾아오는 날이에요. 처음 만나는 사람에게 먼저 웃어 보세요.",
+  "지출을 조금 줄이면 마음이 편해지는 날이에요. 충동구매는 잠시 미뤄요.",
+  "몸과 마음 모두 충전이 필요한 날이에요. 오늘은 일찍 쉬는 게 최고의 선택이에요."
+];
+const FORTUNE_TIP = [
+  "따뜻한 차 한 잔으로 하루를 시작해 보세요.",
+  "오늘은 평소보다 10분 일찍 나서 보세요.",
+  "좋아하는 노래를 한 곡 끝까지 들어 보세요.",
+  "고마운 사람에게 짧은 메시지를 보내 보세요.",
+  "점심 먹고 잠깐 걸으면 좋은 생각이 떠올라요.",
+  "책상 위를 정리하면 머리도 맑아져요.",
+  "거절할 건 부드럽게 거절해도 괜찮아요.",
+  "오늘 하루 잘한 일 세 가지를 적어 보세요."
+];
+const LUCKY_COLORS = [["노랑", "#ffc93c"], ["하늘색", "#7fb2ff"], ["초록", "#43a047"], ["분홍", "#f48fb1"], ["보라", "#9575cd"], ["주황", "#ff9f43"], ["흰색", "#ffffff"], ["남색", "#283593"]];
+const LUCKY_DIRS = ["동쪽", "서쪽", "남쪽", "북쪽", "동남쪽", "서남쪽", "동북쪽", "서북쪽"];
+const SCORE_KEYS = ["금전운", "애정운", "건강운", "일·공부운"];
+
+function seeded(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return () => { h += 0x6D2B79F5; let t = h; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+function todayKey(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+function zodiacYears(idx) {
+  const now = new Date().getFullYear(), years = [];
+  for (let y = now; y >= now - 72; y--) if (((y - 4) % 12 + 12) % 12 === idx) years.push(y);
+  return years.reverse();
+}
+function getFortune(idx, date) {
+  const rand = seeded(todayKey(date) + ":" + idx);
+  const pick = (arr) => arr[Math.floor(rand() * arr.length)];
+  return {
+    main: pick(FORTUNE_MAIN),
+    scores: SCORE_KEYS.map((k) => [k, 1 + Math.floor(rand() * 5)]),
+    color: pick(LUCKY_COLORS),
+    number: 1 + Math.floor(rand() * 45),
+    dir: pick(LUCKY_DIRS),
+    tip: pick(FORTUNE_TIP)
+  };
+}
+function renderFortune(idx) {
+  const now = new Date(), f = getFortune(idx, now);
+  const days = ["일", "월", "화", "수", "목", "금", "토"];
+  document.getElementById("fortuneDate").textContent = now.getFullYear() + "년 " + (now.getMonth() + 1) + "월 " + now.getDate() + "일 (" + days[now.getDay()] + ")";
+  document.querySelectorAll("#zodiac button").forEach((b, i) => b.setAttribute("aria-pressed", String(i === idx)));
+  document.getElementById("fortuneYears").textContent = ZODIAC[idx] + "띠: " + zodiacYears(idx).map((y) => y + "년생").join(" · ");
+  document.getElementById("fortuneTitle").textContent = ZODIAC[idx] + "띠의 오늘";
+  document.getElementById("fortuneMain").textContent = f.main;
+  const scores = document.getElementById("fortuneScores");
+  scores.replaceChildren();
+  f.scores.forEach(([k, v]) => {
+    const row = document.createElement("div"), dt = document.createElement("dt"), dd = document.createElement("dd");
+    dt.textContent = k;
+    dd.setAttribute("aria-label", "5점 중 " + v + "점");
+    dd.innerHTML = "★".repeat(v) + '<span class="off">' + "★".repeat(5 - v) + "</span>";
+    row.append(dt, dd); scores.appendChild(row);
+  });
+  const lucky = document.getElementById("fortuneLucky");
+  lucky.innerHTML = "";
+  const color = document.createElement("span");
+  color.innerHTML = '행운의 색 <i class="swatch"></i> <b></b>';
+  color.querySelector(".swatch").style.background = f.color[1];
+  color.querySelector("b").textContent = f.color[0];
+  const num = document.createElement("span"); num.innerHTML = "행운의 숫자 <b></b>"; num.querySelector("b").textContent = f.number;
+  const dir = document.createElement("span"); dir.innerHTML = "행운의 방향 <b></b>"; dir.querySelector("b").textContent = f.dir;
+  lucky.append(color, num, dir);
+  document.getElementById("fortuneTip").textContent = "JS의 한마디: " + f.tip;
+  try { localStorage.setItem("fortuneZodiac", String(idx)); } catch {}
+}
+(() => {
+  const wrap = document.getElementById("zodiac");
+  ZODIAC.forEach((z, i) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = z; b.setAttribute("aria-pressed", "false");
+    b.addEventListener("click", () => renderFortune(i));
+    wrap.appendChild(b);
+  });
+  let saved = NaN;
+  try { saved = parseInt(localStorage.getItem("fortuneZodiac"), 10); } catch {}
+  renderFortune(saved >= 0 && saved < 12 ? saved : ((new Date().getFullYear() - 4) % 12 + 12) % 12);
+})();
 
 function drawGame() {
   const pool = Array.from({ length: 45 }, (_, i) => i + 1);
