@@ -109,6 +109,20 @@ p { margin: 0; }
 .fortune-lucky b { font-weight: 700; }
 .swatch { width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--line); display: inline-block; }
 .fortune-tip { background: var(--bg); border-radius: 12px; padding: 12px 16px; font-size: .95rem; }
+.zodiac-board-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; margin-top: 8px; }
+.zodiac-board-head h3 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 1.35rem; }
+.zodiac-board-head span { font-size: .85rem; color: var(--muted); }
+.zodiac-board { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.zodiac-board button { width: 100%; height: 100%; text-align: left; font: inherit; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; cursor: pointer; display: flex; flex-direction: column; gap: 6px; transition: border-color .15s ease, transform .15s ease; }
+.zodiac-board button:hover { border-color: var(--sky); transform: translateY(-2px); }
+.zodiac-board button:focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; }
+.zodiac-board button[aria-current="true"] { border-color: var(--sky); box-shadow: inset 0 0 0 1px var(--sky); }
+.zb-top { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+.zb-name { font-family: var(--font-display); font-size: 1.1rem; }
+.zb-score { color: var(--sun); font-size: .9rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.zb-score b { color: var(--fg); font-weight: 700; }
+.zb-line { font-size: .88rem; color: var(--muted); line-height: 1.5; }
+.zb-rank { font-size: .75rem; color: var(--sky); font-weight: 700; letter-spacing: .04em; }
 .fortune-note { font-size: .85rem; color: var(--muted); }
 
 /* Lotto */
@@ -141,6 +155,7 @@ footer { text-align: center; color: var(--muted); font-size: .85rem; }
   .recipe li { grid-template-columns: 1fr; gap: 2px; }
   .zodiac { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .fortune-scores { grid-template-columns: 1fr; }
+  .zodiac-board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .prayer { grid-template-columns: 1fr; gap: 20px; }
   .games li { grid-template-columns: 1fr; gap: 6px; }
 }
@@ -213,7 +228,11 @@ footer { text-align: center; color: var(--muted); font-size: .85rem; }
       <div class="fortune-lucky" id="fortuneLucky"></div>
       <p class="fortune-tip" id="fortuneTip"></p>
     </article>
-    <p class="fortune-note">같은 날에는 같은 운세가 나오고, 날짜가 바뀌면 새 운세가 나와요. 재미로만 봐 주세요.</p>
+    <div class="zodiac-board-head">
+      <h3>오늘의 띠별 운세 한눈에 보기</h3>
+      <span>종합 점수 높은 순 · 누르면 자세히 볼 수 있어요</span>
+    </div>
+    <ul class="zodiac-board" id="zodiacBoard"></ul>    <p class="fortune-note">같은 날에는 같은 운세가 나오고, 날짜가 바뀌면 새 운세가 나와요. 재미로만 봐 주세요.</p>
   </section>
 
   <section class="lotto">
@@ -315,7 +334,28 @@ function getFortune(idx, date) {
     tip: pick(FORTUNE_TIP)
   };
 }
-function renderFortune(idx) {
+function renderBoard(active) {
+  const today = new Date();
+  const rows = ZODIAC.map((z, i) => {
+    const f = getFortune(i, today);
+    const avg = f.scores.reduce((sum, [, v]) => sum + v, 0) / f.scores.length;
+    return { i, z, avg, line: f.main.split(". ")[0].replace(/\.?$/, "."), number: f.number };
+  }).sort((a, b) => b.avg - a.avg || a.i - b.i);
+  const board = document.getElementById("zodiacBoard");
+  board.replaceChildren();
+  rows.forEach((r, rank) => {
+    const li = document.createElement("li"), b = document.createElement("button");
+    b.type = "button";
+    if (r.i === active) b.setAttribute("aria-current", "true");
+    b.innerHTML = '<span class="zb-top"><span class="zb-name"></span><span class="zb-score">★ <b></b></span></span><span class="zb-line"></span><span class="zb-rank"></span>';
+    b.querySelector(".zb-name").textContent = r.z + "띠";
+    b.querySelector(".zb-score b").textContent = r.avg.toFixed(1);
+    b.querySelector(".zb-line").textContent = r.line;
+    b.querySelector(".zb-rank").textContent = (rank === 0 ? "오늘의 1등 · " : rank + 1 + "위 · ") + "행운의 숫자 " + r.number;
+    b.addEventListener("click", () => { renderFortune(r.i); document.getElementById("fortuneTitle").closest(".fortune-card").scrollIntoView({ behavior: "smooth", block: "center" }); });
+    li.appendChild(b); board.appendChild(li);
+  });
+}function renderFortune(idx) {
   const now = new Date(), f = getFortune(idx, now);
   const days = ["일", "월", "화", "수", "목", "금", "토"];
   document.getElementById("fortuneDate").textContent = now.getFullYear() + "년 " + (now.getMonth() + 1) + "월 " + now.getDate() + "일 (" + days[now.getDay()] + ")";
@@ -342,6 +382,7 @@ function renderFortune(idx) {
   const dir = document.createElement("span"); dir.innerHTML = "행운의 방향 <b></b>"; dir.querySelector("b").textContent = f.dir;
   lucky.append(color, num, dir);
   document.getElementById("fortuneTip").textContent = "JS의 한마디: " + f.tip;
+  renderBoard(idx);
   try { localStorage.setItem("fortuneZodiac", String(idx)); } catch {}
 }
 (() => {
