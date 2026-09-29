@@ -123,6 +123,19 @@ p { margin: 0; }
 .zb-score b { color: var(--fg); font-weight: 700; }
 .zb-line { font-size: .88rem; color: var(--muted); line-height: 1.5; }
 .zb-rank { font-size: .75rem; color: var(--sky); font-weight: 700; letter-spacing: .04em; }
+.birth { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.birth label { font-weight: 700; }
+.birth select { font: inherit; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; }
+.birth select:focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; }
+.birth small { color: var(--muted); font-size: .82rem; }
+.year-fortunes { display: flex; flex-direction: column; gap: 8px; }
+.year-fortunes h4 { margin: 0; font-size: 1rem; font-weight: 700; }
+.year-fortunes ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.year-fortunes li { display: grid; grid-template-columns: 6rem minmax(0, 1fr); gap: 12px; padding: 8px 10px; border-radius: 10px; font-size: .95rem; }
+.year-fortunes li:nth-child(odd) { background: var(--bg); }
+.year-fortunes li b { font-variant-numeric: tabular-nums; color: var(--sky); font-weight: 700; }
+.year-fortunes li.mine { background: var(--sky); color: #fff; }
+.year-fortunes li.mine b { color: #fff; }
 .fortune-note { font-size: .85rem; color: var(--muted); }
 
 /* Lotto */
@@ -156,6 +169,7 @@ footer { text-align: center; color: var(--muted); font-size: .85rem; }
   .zodiac { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .fortune-scores { grid-template-columns: 1fr; }
   .zodiac-board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .year-fortunes li { grid-template-columns: 1fr; gap: 2px; }
   .prayer { grid-template-columns: 1fr; gap: 20px; }
   .games li { grid-template-columns: 1fr; gap: 6px; }
 }
@@ -219,12 +233,19 @@ footer { text-align: center; color: var(--muted); font-size: .85rem; }
       <h2>JS가 봐주는 오늘의 운세</h2>
       <span class="fortune-date" id="fortuneDate"></span>
     </div>
-    <div class="zodiac" id="zodiac" role="group" aria-label="띠 선택"></div>
+    <div class="birth">
+      <label for="birthYear">태어난 해로 찾기</label>
+      <select id="birthYear"><option value="">선택 안 함</option></select>
+      <small>1~2월생은 음력 설 전이면 앞 해의 띠예요.</small>
+    </div>    <div class="zodiac" id="zodiac" role="group" aria-label="띠 선택"></div>
     <p class="fortune-years" id="fortuneYears"></p>
     <article class="fortune-card" aria-live="polite">
       <h3 id="fortuneTitle">오늘의 운세</h3>
       <p class="fortune-main" id="fortuneMain"></p>
-      <dl class="fortune-scores" id="fortuneScores"></dl>
+      <div class="year-fortunes">
+        <h4 id="yearTitle">년생별 운세</h4>
+        <ul id="yearList"></ul>
+      </div>      <dl class="fortune-scores" id="fortuneScores"></dl>
       <div class="fortune-lucky" id="fortuneLucky"></div>
       <p class="fortune-tip" id="fortuneTip"></p>
     </article>
@@ -334,7 +355,56 @@ function getFortune(idx, date) {
     tip: pick(FORTUNE_TIP)
   };
 }
-function renderBoard(active) {
+const YEAR_LINES = [
+  "귀인의 도움으로 일이 쉽게 풀려요.",
+  "건강 관리에 조금 더 신경 쓰면 좋아요.",
+  "가족과의 대화에서 좋은 답을 찾아요.",
+  "작은 투자보다 저축이 이로운 날이에요.",
+  "오랜 친구에게서 반가운 연락이 와요.",
+  "새로운 제안은 하루 더 생각해 보고 답하세요.",
+  "마음먹었던 일을 시작하기에 딱 좋은 날이에요.",
+  "말 한마디가 복을 부르니 칭찬을 아끼지 마세요.",
+  "뜻밖의 작은 수입이 생길 수 있어요.",
+  "무리한 약속은 피하고 여유를 가지세요.",
+  "배우는 일에 운이 따라요. 책 한 권 펼쳐 보세요.",
+  "잃어버린 물건이나 잊은 일을 되찾아요.",
+  "이동이 많은 날이니 소지품을 잘 챙기세요.",
+  "사람들 사이에서 인기가 올라가는 날이에요.",
+  "고민하던 문제의 실마리가 보여요.",
+  "오늘은 욕심보다 양보가 더 큰 행운이 돼요."
+];
+let selectedYear = null;
+function zodiacOf(year) { return ((year - 4) % 12 + 12) % 12; }
+function renderYears(idx) {
+  const key = todayKey(new Date());
+  document.getElementById("yearTitle").textContent = ZODIAC[idx] + "띠 년생별 운세";
+  const list = document.getElementById("yearList");
+  list.replaceChildren();
+  zodiacYears(idx).forEach((y) => {
+    const rand = seeded(key + ":y" + y);
+    const li = document.createElement("li"), b = document.createElement("b"), p = document.createElement("span");
+    b.textContent = y + "년생";
+    p.textContent = YEAR_LINES[Math.floor(rand() * YEAR_LINES.length)];
+    if (y === selectedYear) { li.className = "mine"; li.setAttribute("aria-current", "true"); }
+    li.append(b, p); list.appendChild(li);
+  });
+}
+function initBirthYear() {
+  const sel = document.getElementById("birthYear"), now = new Date().getFullYear();
+  for (let y = now; y >= now - 72; y--) {
+    const o = document.createElement("option");
+    o.value = y; o.textContent = y + "년 (" + ZODIAC[zodiacOf(y)] + "띠)";
+    sel.appendChild(o);
+  }
+  try { const v = parseInt(localStorage.getItem("fortuneBirthYear"), 10); if (v >= now - 72 && v <= now) { selectedYear = v; sel.value = String(v); } } catch {}
+  sel.addEventListener("change", () => {
+    selectedYear = sel.value ? parseInt(sel.value, 10) : null;
+    try { if (selectedYear) localStorage.setItem("fortuneBirthYear", String(selectedYear)); else localStorage.removeItem("fortuneBirthYear"); } catch {}
+    const idx = selectedYear ? zodiacOf(selectedYear) : Math.max(0, [...document.querySelectorAll("#zodiac button")].findIndex((b) => b.getAttribute("aria-pressed") === "true"));
+    renderFortune(idx);
+    if (selectedYear) document.querySelector("#yearList .mine")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+}function renderBoard(active) {
   const today = new Date();
   const rows = ZODIAC.map((z, i) => {
     const f = getFortune(i, today);
@@ -382,11 +452,13 @@ function renderBoard(active) {
   const dir = document.createElement("span"); dir.innerHTML = "행운의 방향 <b></b>"; dir.querySelector("b").textContent = f.dir;
   lucky.append(color, num, dir);
   document.getElementById("fortuneTip").textContent = "JS의 한마디: " + f.tip;
+  renderYears(idx);
   renderBoard(idx);
   try { localStorage.setItem("fortuneZodiac", String(idx)); } catch {}
 }
 (() => {
   const wrap = document.getElementById("zodiac");
+  initBirthYear();
   ZODIAC.forEach((z, i) => {
     const b = document.createElement("button");
     b.type = "button"; b.textContent = z; b.setAttribute("aria-pressed", "false");
