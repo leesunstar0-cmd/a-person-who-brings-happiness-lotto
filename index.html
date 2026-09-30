@@ -45,8 +45,22 @@ h2 { font-size: 1.75rem; }
 p { margin: 0; }
 .label { font-size: .8rem; letter-spacing: .12em; color: var(--sky); text-transform: uppercase; font-weight: 700; }
 
-/* Hero */
-.hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 20px; padding-top: 56px; }
+[hidden] { display: none !important; }
+
+/* Top bar: 회원 메뉴 (happy-man 과 같은 회원 정보를 써요) */
+.topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; margin-inline: -16px; padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.topbar-inner { max-width: 760px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand { font-family: var(--font-display); font-size: 1.15rem; color: var(--fg); text-decoration: none; }
+.brand b { color: var(--sky); font-weight: 400; }
+.account { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: .92rem; }
+.account a, .account button { font: inherit; font-size: .92rem; text-decoration: none; padding: 6px 14px; border-radius: 99px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); cursor: pointer; }
+.account a.join { background: var(--sky); border-color: var(--sky); color: #fff; font-weight: 700; }
+.account a:focus-visible, .account button:focus-visible, .brand:focus-visible { outline: 3px solid var(--sky); outline-offset: 2px; }
+.who { display: inline-flex; align-items: center; gap: 6px; }
+.badge { font-size: .75rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: var(--bg); color: var(--muted); border: 1px solid var(--line); white-space: nowrap; }
+.badge.admin { background: var(--sun); color: #2a2107; border-color: var(--sun); }
+
+/* Hero */.hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 20px; padding-top: 40px; }
 .hero h1 { font-size: clamp(2.2rem, 7vw, 3.4rem); }
 .hero h1 em { font-style: normal; color: var(--sky); }
 .hero p { color: var(--muted); max-width: 32ch; }
@@ -178,8 +192,18 @@ footer { text-align: center; color: var(--muted); font-size: .85rem; }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header class="hero">
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="#top">행복을 주는 사람, <b>JS</b></a>
+    <nav class="account" aria-label="회원 메뉴">
+      <a href="/happy-man/signup.html?next=%2Fa-person-who-brings-happiness-lotto%2F#login" id="navLogin">로그인</a>
+      <a href="/happy-man/signup.html?next=%2Fa-person-who-brings-happiness-lotto%2F" class="join" id="navJoin">회원가입</a>
+      <span class="who" id="navWho" hidden><span id="navName"></span><span class="badge" id="navBadge"></span></span>
+      <button type="button" id="navLogout" hidden>로그아웃</button>
+    </nav>
+  </div>
+</header>
+<div class="wrap" id="top">  <header class="hero">
     <span class="label">Hello, I'm JS</span>
     <h1>곁에 있으면 <em>행복해지는</em> 사람, JS</h1>
     <p>환한 미소 하나로 주변을 밝게 만드는 사람입니다.</p>
@@ -282,8 +306,33 @@ footer { text-align: center; color: var(--muted); font-size: .85rem; }
   <footer>오늘도 좋은 하루 보내세요 :)</footer>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="/happy-man/config.js"></script>
 <script>
-const messages = [
+// 회원 메뉴: '행복을 주는 남자들'(happy-man)과 같은 Supabase 회원 정보와 회원가입 페이지를 써요.
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const next = encodeURIComponent(location.pathname);
+  $("navLogin").href = "/happy-man/signup.html?next=" + next + "#login";
+  $("navJoin").href = "/happy-man/signup.html?next=" + next;
+  const auth = window.happyAuth;
+  if (!auth) return;
+  const render = async (session) => {
+    const on = !!session;
+    $("navLogin").hidden = on; $("navJoin").hidden = on; $("navWho").hidden = !on; $("navLogout").hidden = !on;
+    if (!on) return;
+    const { data } = await auth.from("profiles").select("nickname, role").eq("id", session.user.id).maybeSingle();
+    const isAdmin = data && data.role === "admin";
+    $("navName").textContent = ((data && data.nickname) || (session.user.user_metadata && session.user.user_metadata.nickname) || "회원") + "님";
+    $("navBadge").textContent = isAdmin ? "관리자" : "일반 회원";
+    $("navBadge").classList.toggle("admin", !!isAdmin);
+  };
+  auth.auth.getSession().then(({ data }) => render(data.session));
+  auth.auth.onAuthStateChange((event, session) => { if (event !== "INITIAL_SESSION") render(session); });
+  $("navLogout").addEventListener("click", () => auth.auth.signOut());
+})();
+</script>
+<script>const messages = [
   "오늘 당신 웃는 모습, 생각보다 훨씬 멋져요.",
   "지금까지 잘 해왔어요. 앞으로도 잘 할 거예요.",
   "잠깐 쉬어가도 괜찮아요. 커피 한 잔 어때요?",
